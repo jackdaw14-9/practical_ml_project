@@ -1,0 +1,96 @@
+---
+title: "Practical Machine Learning Course_Project"
+author: "Chinmoy Das"
+date: "September 3, 2017"
+output: html_document
+---
+
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = T)
+```
+## Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively.
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+The goal of this project is to predict the manner in which they did the exercise.
+## Load the necessary library
+```{r load_lib, include = T}
+library (caret);
+library (rpart);
+library (rattle);
+library (randomForest);
+```
+## Load the data
+We also clean all the columns that have NA's
+```{r load_data, include = T}
+pml.train <- read.csv ("D:/R/JHU/Practical Machine Learning/Course_Project/pml-training.csv", na.strings = c ("NA", "#DIV/0!", ""));
+pml.train <- pml.train[ , (colSums(is.na (pml.train)) == 0)];
+pml.test <- read.csv ("D:/R/JHU/Practical Machine Learning/Course_Project/pml-testing.csv", na.strings = c ("NA", "#DIV/0!", ""));
+pml.test <- pml.test[ , (colSums(is.na (pml.test)) == 0)];
+#all the data has been read, and the NA's have also been taken care of
+```
+Actual datasets contain 160 columns, which have been reduced to 60 !!
+## Some pre-processing of data is needed
+```{r pre_process, include = T}
+#now for the pre-processing
+num_col <- which(lapply(pml.train, class) %in% "numeric");
+pre_process_model <- preProcess (pml.train[ , num_col], method = c ('knnImpute', 'center', 'scale'));
+pre_process_train <- predict (pre_process_model, pml.train[ , num_col]);
+pre_process_train$classe <- pml.train$classe;
+pre_process_test <- predict (pre_process_model, pml.test[ , num_col]);
+```
+##Removing the NEAR-ZERO VALUES
+```{r nzv, include = T}
+#removing the near-zero variables
+#training_data
+nzv <- nearZeroVar (pre_process_train, saveMetrics = T);
+pre_process_train <- pre_process_train[ , (nzv$nzv == F)]
+#testing_data
+nzv <- nearZeroVar (pre_process_test, saveMetrics = T);
+pre_process_test <- pre_process_test[ , (nzv$nzv== F)];
+rm (nzv);
+```
+##Creating the data_sets required
+```{r data_req, include = T}
+#creating the training & testing dataset
+set.seed (10000007);
+inTrain <- createDataPartition (pre_process_train$classe, p = 0.7, list = F)
+training <- pre_process_train[inTrain, ];
+testing <- pre_process_train[-inTrain, ];
+```
+seed is also set, so as to keep up with reproducibility
+##Model Fitting using Random_Forest
+```{r model_fitting, include = T}
+#model fitting using random_foresting
+model_rf <- train (classe ~., method = "rf", data = training,
+					trControl = trainControl (method = 'cv'), number = 5, allowParallel = T, importance = T);
+
+#prediction on testing_data
+res_test <- predict (model_rf, testing);
+print (confusionMatrix (res_test, testing$classe));
+```
+##Accuracy Checking && Out_of_sample Errors checking
+```{r checking, include = T}
+resample_accuracy <- postResample (res_test, testing$classe)
+accuracy <- resample_accuracy[[1]];
+out_of_sample_error <- 1 - accuracy;
+print (paste ("Accuracy = ", accuracy));
+print (paste ("Out of sample error = ", out_of_sample_error));
+#rf -- accuracy ~ 99.42%
+#out_of_sample_error -- 0.57%
+```
+I've even mentioned the results, that I got in the initial run !!
+##Working on the final model !!
+```{r final_model, include = T}
+#final prediction
+res_final <- predict (model_rf, pml.test);
+print (res_final);
+#E B B A A E E B B E B B B B E E E B E E
+#Levels: A B C D E
+```
+I've also mentioned the final results, that I got in the initial run !!
+
+##Submitted on Github
+
+Thank you for your patience !!
